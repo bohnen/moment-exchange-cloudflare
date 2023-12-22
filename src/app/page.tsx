@@ -1,113 +1,103 @@
-import Image from 'next/image'
+'use client';
+import { Execution, Rate, sendOrder, subscribeToRateTopic } from '@/momento/api';
+import { Button, Card, CustomFlowbiteTheme, Label, Radio } from 'flowbite-react';
+import { useEffect, useState } from 'react';
+import { OrderTable } from './Table';
+
+// table default data
+const defaultData: Execution[] = [
+  /*
+  {id: '1', price: 1000000, amount: 0.01, side: 'buy', status: 'done', executed_price: 1000000, executed_time: '2021-09-01 12:00:00'},
+  {id: '2', price: 1000000, amount: 0.01, side: 'buy', status: 'done', executed_price: 1000000, executed_time: '2021-09-01 12:00:00'},
+  */
+];
+
+// custom theme
+const customButton : CustomFlowbiteTheme['button'] = {
+  size: {
+    xl: 'font-medium text-xl px-20 py-3',
+  }
+}
 
 export default function Home() {
+  const [price, setPrice] = useState<{ bid: number; ask: number }>({ bid: 0, ask: 0 });
+  const [orderType, setOrderType] = useState<'buy' | 'sell'>('buy');
+  const [amount, setAmount] = useState<'1' | '0.1' | '0.01'>('0.01');
+  const [data, setData] = useState(() => [...defaultData])
+  
+  useEffect(() => {
+    subscribeToRateTopic((message) => {
+      const msg = JSON.parse(message.valueString()) as Rate;
+      // console.log(msg);
+      setPrice({
+        bid: msg.best_bid,
+        ask: msg.best_ask
+      });
+    },
+    async (error) => {
+      console.log(error.message);
+    }
+    );
+  }, []);
+
+  const placeOrder = (bs: 'buy' | 'sell') => {
+    setOrderType(bs);
+    sendOrder({side:bs, amount:parseFloat(amount), price:bs === 'buy' ? price.ask : price.bid}).then(
+      (res) => {
+        console.log(res);
+        setData((prev) => [...prev, res]);
+      });
+  };
+
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+    <div className="App">
+      <div className='container px-4 py-6'>
+        <div className='grid  grid-cols-1 gap-4'>
+          <div className='flex flex-row justify-center space-x-2'>
+            <svg className="h-8 w-8" viewBox="0.004 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="#000000"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path d="M63.04 39.741c-4.274 17.143-21.638 27.575-38.783 23.301C7.12 58.768-3.313 41.404.962 24.262 5.234 7.117 22.597-3.317 39.737.957c17.144 4.274 27.576 21.64 23.302 38.784z" fill="#f7931a"></path><path d="M46.11 27.441c.636-4.258-2.606-6.547-7.039-8.074l1.438-5.768-3.512-.875-1.4 5.616c-.922-.23-1.87-.447-2.812-.662l1.41-5.653-3.509-.875-1.439 5.766c-.764-.174-1.514-.346-2.242-.527l.004-.018-4.842-1.209-.934 3.75s2.605.597 2.55.634c1.422.355 1.68 1.296 1.636 2.042l-1.638 6.571c.098.025.225.061.365.117l-.37-.092-2.297 9.205c-.174.432-.615 1.08-1.609.834.035.051-2.552-.637-2.552-.637l-1.743 4.02 4.57 1.139c.85.213 1.683.436 2.502.646l-1.453 5.835 3.507.875 1.44-5.772c.957.26 1.887.5 2.797.726L27.504 50.8l3.511.875 1.453-5.823c5.987 1.133 10.49.676 12.383-4.738 1.527-4.36-.075-6.875-3.225-8.516 2.294-.531 4.022-2.04 4.483-5.157zM38.087 38.69c-1.086 4.36-8.426 2.004-10.807 1.412l1.928-7.729c2.38.594 10.011 1.77 8.88 6.317zm1.085-11.312c-.99 3.966-7.1 1.951-9.083 1.457l1.748-7.01c1.983.494 8.367 1.416 7.335 5.553z" fill="#ffffff"></path></g></svg> 
+            <h1 className="text-3xl font-bold">Bitcoin Trade</h1>
+          </div>
+          <div className='flex flex-row justify-center space-x-4 '>
+            <Card className='max-w-sm'>
+              <div className='resize-none w-48 px-4 py-5 sm:p-6'>
+                  <h3 className="text-xl leading-5 font-bold text-red-500">Bid</h3>
+                  <p className="mt-1 text-3xl leading-9 font-semibold text-gray-600">{price.bid.toLocaleString("en-US")}</p>
+              </div>
+            </Card>
+            <Card className='max-w-sm'>
+              <div className='resize-none w-48 px-4 py-5 sm:p-6'>
+                  <h3 className="text-xl leading-5 font-bold text-blue-500">Ask</h3>
+                  <p className="mt-1 text-3xl leading-9 font-semibold text-gray-600">{price.ask.toLocaleString("en-US")}</p>
+              </div>
+            </Card>
+          </div>
+          <fieldset className='flex flex-row justify-center space-x-2'>
+            <h2>Amount</h2>
+            <div className='flex items-center border border-gray-200 rounded px-2'> 
+              <Radio checked={amount === '1'} onChange={() => setAmount('1')} id="1" name="1" value="1" />
+              <Label htmlFor="1" className='ml-2'>1</Label>
+            </div>
+            <div className='flex items-center border border-gray-200 rounded px-2'> 
+              <Radio checked={amount === '0.1'} onChange={() => setAmount('0.1')} id="0.1" name="0.1" value="0.1" />
+              <Label htmlFor="0.1" className='ml-2'>0.1</Label>
+            </div>
+            <div className='flex items-center border border-gray-200 rounded px-2'> 
+              <Radio checked={amount === '0.01'} onChange={() => setAmount('0.01')} id="0.01" name="0.01" value="0.01" />
+              <Label htmlFor="0.01" className='ml-2'>0.01</Label>
+            </div>
+          </fieldset>
+
+          <div className='flex flex-row justify-center space-x-4'>
+            <Button size="xl" gradientDuoTone="pinkToOrange" theme={customButton} onClick={() => placeOrder('sell')}>Sell</Button>
+            <Button size="xl" gradientDuoTone="purpleToBlue" theme={customButton} onClick={() => placeOrder('buy')}>Buy</Button>
+
+          </div>
+          <div className='flex justify-center'>
+            <OrderTable data={data} />
+          </div>
         </div>
       </div>
-
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+    </div>
   )
 }
